@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Европа — страны и столицы</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b1020;color:#eef2ff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.wrap{max-width:1100px;margin:auto;padding:16px}h1{font-size:24px;margin:4px 0 6px}p{color:#aab4d0;margin:0 0 12px}
+.card{background:#121a2e;border:1px solid #263454;border-radius:18px;padding:14px;margin-top:12px}
+#map{height:62vh;min-height:430px;background:#0e1527;border-radius:14px;overflow:hidden;touch-action:none}
+svg{width:100%;height:100%;display:block}.country{fill:#263552;stroke:#7080a6;stroke-width:.7;cursor:pointer;transition:.12s}.country:hover{fill:#40557d}.country.ok{fill:#31b77a}.country.bad{fill:#e35b6d}
+.bar{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}.stat{font-weight:700}
+button{border:0;border-radius:11px;padding:10px 14px;background:#263552;color:white;font-size:15px}button:active{transform:scale(.98)}
+.prompt{font-size:19px;font-weight:700;margin:4px 0 10px}.small{font-size:13px;color:#8f9ab7}.hidden{display:none}.result{font-size:17px;font-weight:700}
+</style></head>
+<body><div class="wrap">
+<h1>География Европы</h1>
+<p>Нажмите на страну на карте. Вопросы проверяют знание стран и их столиц.</p>
+<div class="card"><div class="bar"><div><div class="small">Задание <span id="num">1</span> / 20</div><div class="prompt" id="prompt">Загрузка карты…</div></div><div class="stat">Счёт: <span id="score">0</span></div></div></div>
+<div class="card"><div id="map"></div></div>
+<div class="card"><div id="feedback" class="result">Подождите загрузки карты.</div>
+<div style="margin-top:12px" class="bar"><button id="next" class="hidden">Следующий вопрос →</button><button id="restart">Начать заново</button></div></div>
+</div>
+<script>
+const DATA_URL="https://raw.githubusercontent.com/leakyMirror/map-of-europe/master/GeoJSON/europe.geojson";
+const countries=[
+["Albania","Албания","Тирана"],["Andorra","Андорра","Андорра-ла-Велья"],["Austria","Австрия","Вена"],["Belgium","Бельгия","Брюссель"],
+["Bosnia and Herzegovina","Босния и Герцеговина","Сараево"],["Bulgaria","Болгария","София"],["Croatia","Хорватия","Загреб"],
+["Cyprus","Кипр","Никосия"],["Czechia","Чехия","Прага"],["Denmark","Дания","Копенгаген"],["Estonia","Эстония","Таллин"],
+["Finland","Финляндия","Хельсинки"],["France","Франция","Париж"],["Germany","Германия","Берлин"],["Greece","Греция","Афины"],
+["Hungary","Венгрия","Будапешт"],["Iceland","Исландия","Рейкьявик"],["Ireland","Ирландия","Дублин"],["Italy","Италия","Рим"],
+["Latvia","Латвия","Рига"],["Liechtenstein","Лихтенштейн","Вадуц"],["Lithuania","Литва","Вильнюс"],["Luxembourg","Люксембург","Люксембург"],
+["Malta","Мальта","Валлетта"],["Moldova","Молдова","Кишинёв"],["Monaco","Монако","Монако"],["Montenegro","Черногория","Подгорица"],
+["Netherlands","Нидерланды","Амстердам"],["North Macedonia","Северная Македония","Скопье"],["Norway","Норвегия","Осло"],
+["Poland","Польша","Варшава"],["Portugal","Португалия","Лиссабон"],["Romania","Румыния","Бухарест"],["San Marino","Сан-Марино","Сан-Марино"],
+["Serbia","Сербия","Белград"],["Slovakia","Словакия","Братислава"],["Slovenia","Словения","Любляна"],["Spain","Испания","Мадрид"],
+["Sweden","Швеция","Стокгольм"],["Switzerland","Швейцария","Берн"],["Ukraine","Украина","Киев"],["United Kingdom","Великобритания","Лондон"],
+["Vatican","Ватикан","Ватикан"],["Belarus","Беларусь","Минск"],["Russia","Россия","Москва"]
+];
+const map=new Map(countries.map(x=>[x[0],x]));
+let svg,features=[],order=[],i=0,score=0,locked=false;
+function project(c){const x=(c[0]+12)/(42+12)*1000,y=(72-c[1])/(72-34)*650;return [x,y]}
+function ring(r){return r.map((p,j)=>{let q=project(p);return (j?"L":"M")+q[0].toFixed(1)+" "+q[1].toFixed(1)}).join(" ")+"Z"}
+function geom(g){if(g.type==="Polygon")return g.coordinates.map(ring).join(" ");return g.coordinates.map(p=>p.map(ring).join(" ")).join(" ")}
+function render(data){
+features=data.features.filter(f=>map.has(f.properties.name));
+svg=document.createElementNS("http://www.w3.org/2000/svg","svg");svg.setAttribute("viewBox","0 0 1000 650");document.getElementById("map").appendChild(svg);
+features.forEach(f=>{let p=document.createElementNS("http://www.w3.org/2000/svg","path");p.setAttribute("d",geom(f.geometry));p.className.baseVal="country";p.dataset.name=f.properties.name;p.onclick=()=>answer(f.properties.name);svg.appendChild(p)});
+start();
+}
+function start(){order=[...countries].sort(()=>Math.random()-.5).slice(0,20);i=0;score=0;document.getElementById("score").textContent=0;question()}
+function question(){locked=false;document.getElementById("num").textContent=i+1;document.getElementById("prompt").textContent="Найдите на карте: "+order[i][1];document.getElementById("feedback").textContent="Выберите страну на карте.";document.querySelectorAll(".country").forEach(x=>x.className.baseVal="country");document.getElementById("next").classList.add("hidden")}
+function answer(name){if(locked)return;locked=true;let t=order[i],ok=name===t[0];let chosen=[...document.querySelectorAll(".country")].find(x=>x.dataset.name===name);let right=[...document.querySelectorAll(".country")].find(x=>x.dataset.name===t[0]);if(chosen)chosen.className.baseVal="country "+(ok?"ok":"bad");if(!ok&&right)right.className.baseVal="country ok";if(ok)score++;document.getElementById("score").textContent=score;document.getElementById("feedback").textContent=ok?"✓ Верно! Столица — "+t[2]+".":"✗ Это "+(map.get(name)?.[1]||name)+". Правильный ответ: "+t[1]+", столица — "+t[2]+".";let b=document.getElementById("next");b.classList.remove("hidden");b.textContent=i===19?"Показать результат →":"Следующий вопрос →"}
+document.getElementById("next").onclick=()=>{if(i<19){i++;question()}else{document.getElementById("prompt").textContent="Тест завершён";document.getElementById("feedback").textContent="Результат: "+score+" / 20";document.getElementById("next").classList.add("hidden")}};
+document.getElementById("restart").onclick=start;
+fetch(DATA_URL).then(r=>r.json()).then(render).catch(()=>document.getElementById("feedback").textContent="Не удалось загрузить карту. Откройте файл при наличии интернета.");
+</script></body></html>
